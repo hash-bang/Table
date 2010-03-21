@@ -1,0 +1,307 @@
+#!/usr/bin/perl
+use Getopt::Long qw(:config pass_through bundling);
+use Text::ASCIITable;
+
+use Data::Dumper;
+
+# Input/Output options
+my $verbose, $number, $noguess;
+our @columns;
+our $title = '';
+our @ignores, @rewrites;
+our $firstline = 1;
+our $delimiter = '\s+';
+our $regexp;
+our $format;
+
+# Color options
+my $color = 0;
+my $color_line = 'blue/blue';
+my $color_title = 'bold blue';
+my $color_col = 'bold blue';
+my $show_interline = 0;
+
+GetOptions(
+	'delimiter|d' => \$delimiter,
+	'columns|cols=s' => \@columns,
+	'ignore|i=s@' => \@ignores,
+	'rewrite|r=s' => \@rewrites,
+	'noguess|g' => \$noguess,
+	'verbose|v+' => \$verbose,
+	'number|n' => \$number,
+	'title|t=s' => \$title,
+	'color|c' => \$color,
+	'color_line|cl' => \$color_line,
+	'color_title|ch' => \$color_title,
+	'color_col|cc' => \$color_col,
+	'interline|il' => \$show_interline,
+	'regexp|re=s' => \$regexp,
+	'firstline|f' => \$firstline,
+);
+if ($regexp and $delimiter) {
+	print STDERR "Cannot specify both a delimiter and RegExp\n";
+	exit 1;
+}
+
+sort @ignores if @ignores;
+$color_line =~ s/^([a-z ]+)\/([a-z ]+)$/\1 on_\2/i;
+$color_title =~ s/^([a-z ]+)\/([a-z ]+)$/\1 on_\2/i;
+$color_col =~ s/^([a-z ]+)\/([a-z ]+)$/\1 on_\2/i;
+
+our $table = Text::ASCIITable->new();
+$table->setCols('Id','Name','Price');
+my $rowno = 1;
+my $set_header = 0;
+while (<>) {
+	my @row;
+	chomp; # nom nom nom
+	if ($regexp) {
+		@row = ($_ =~ $regexp);
+		unless (@row) {
+			print "FILTERED OUT: '$_'\n" if $verbose >= 2;
+			next;
+		}
+	} else {
+		@row = split($delimiter);
+		foreach $remove (reverse @ignores) {
+			splice(@row, $remove, 1);
+		}
+		foreach $col (0..$#rewrites) {
+			($row[$col]) = ($row[$col] =~ $rewrites[$col]) if $rewrites[$col];
+		}
+	}
+	unless ($set_header++) {
+		my $output = 1;
+		@columns = @row;
+		unless ($noguess) { # First data line when we are guessing the format
+			guess_format($_);
+			if ($format ne 'guess') {
+				print "Guessed format: '$format'\n" if $verbose;
+			} elsif (/\t/) {
+				$delimiter = '\t';
+				$output = 0;
+				print "Guessed format: unknown. Using tab delimiters\n" if $verbose;
+			} else {
+				$output = 0;
+				print "Guessed format: unknown. Using first line as columns and whitespace as delimiters\n" if $verbose;
+			}
+		}
+		if ($color) {
+			use Term::ANSIColor qw/colored/;
+			map { $_ = colored($_, $color_col) } @columns;
+		}
+		unshift @columns, '#' if $number;
+		$table->setCols(@columns);
+		if ($output) {
+			redo;
+		} else {
+			next;
+		}
+	}
+	$rowno++;
+	next if $rowno == 2 && !$firstline;
+	unshift @row, $rowno if $number;
+	$table->addRow(\@row);
+}
+
+my @layout = (
+	['.','.','-','-'],   # .-------------.
+	['|','|','|'],       # | info | info |
+	['|','|','-','-'],   # |-------------|
+	['|','|','|'],       # | info | info |
+	['\'','\'','-','-']  # '-------------'
+);
+if ($show_interline) {
+	push @layout, $layout[2];
+	$table->setOptions('drawRowLine',1);
+}
+
+if ($color) {
+	$table->setOptions({
+		'allowANSI' => 1,
+		'headingStartChar' => colored($layout[1][0], $color_line),
+		'headingStopChar' => colored($layout[1][1], $color_line),
+	});
+	$table->setOptions('headingText', colored($title, $color_title)) if $title;
+	foreach (0..$#layout) {
+		map { $_ = colored($_, $color_line) } @{@layout[$_]};
+	}
+} else { # Plain old black & white
+	$table->setOptions('headingText', $title) if $title;
+}
+
+print $table->draw(@layout);
+
+sub guess_format {
+	my ($_) = shift @_;
+	our $title, $delimiter, $format, @ignores, @columns, $table, $firstline;
+	our $regexp;
+	if (/^.+? on .+? type .+? \(.+?\)$/) {
+		$title = 'Mount points';
+		$delimiter = '\s+';
+		@ignores = (1, 3);
+		@rewrites = (0,0,0, qr/^\((.+)\)$/);
+		@columns = ('Device', 'Mount', 'Type', 'Flags');
+		$format = 'mount';
+	} elsif (/^Filesystem\s+(Size|1K-blocks)\s+Used\s+Avail(able)?\s+Use%\s+Mounted on/) {
+		$firstline = 0;
+		$title = 'Disk usage';
+		$delimiter = '\s+';
+		@ignores = (6);
+		@columns = ('Device', ($1 eq 'Size' ? 'Size' : '1K Blocks'), 'Used', 'Available', '% Use', 'Mount');
+		$format = 'df';
+	} elsif (/^.+?:[0-9]+ [0-9a-f:]{1,16} - - \[.+?\] ".+?" [0-9-]+ [0-9-]+ ".+?" ".+?"$/i) {
+		$title = 'Apache access log';
+		@columns = ('Host', 'Source', 'Date', 'Request', 'Response', 'Size', 'Page', 'Agent');
+		$regexp = qr/^(.+?:[0-9]*) ([0-9a-f:\.]{1,16}) - - \[(.+?)\] "(.+?)" ([0-9-]+) ([0-9-]+) "(.+?)" "(.+?)"/i;
+		$format = 'apache access log';
+	} elsif (/^\[.+?\] \[.+?\] .*/) {
+		$title = 'Apache error log';
+		@columns = ('Date', 'Error', 'Message');
+		$regexp = qr/^\[(.+?)\] \[(.+?)\] (.*)/;
+	} elsif (/^([a-z]{3}\s+[0-9]+? [0-9:]{8})/i) {
+		$title = 'Syslog';
+		@columns = ('Date', 'Host', 'Invoker', 'Message');
+		$regexp = qr/^([a-z]{3}\s+[0-9]+? [0-9:]{8}) (.+?) (.+?): (.+)$/i;
+	} elsif (/^\[[ 0-9]+\.[0-9]+\] .*/) {
+		$title = 'DMESG';
+		@columns = ('Time Offset', 'Message');
+		$regexp = qr/^\[([ 0-9]+\.[0-9]+)\] (.*)/;
+	}
+}
+
+
+=head1 NAME
+
+table - Table formatter for pipe and/or command output
+
+=head1 SYNOPSIS
+	table [options] [file...]
+	command | table [options]
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-d>
+
+=item B<--delimiter [delimiter]>
+
+Specify an alternative delimiter.
+If not specifed whitespace (\s+) is used.
+
+=item B<--c>
+
+=item B<--color>
+
+Use color when drawing the tables.
+Specify the colors using the --color-* flags.
+
+=item B<--cl>
+
+=item B<--color-line>
+
+Specify the color scheme of the inter-table lines.
+E.g. 'blue on black' or 'red'
+
+=item B<--ct>
+
+=item B<--color-title>
+
+Specify the color scheme of the table title.
+
+=item B<--cc>
+
+=item B<--color-col>
+
+Specify the color scheme of the table column headers.
+
+=item B<-cols>
+=item B<-columns [col]>
+
+FIXME: NOT TESTED FULLY.
+Title the incomming columns. Use multiple times to title all columns.
+If not specified and the guessing of the incomming data fails the first line will be used as the column titles.
+
+=item B<-i>
+
+=item B<--ignore [column number]>
+
+Specify which incomming columns to ignore. The number specifies which column numbers should be omitted from the output.
+Use multiple times for multiple columns.
+
+=item B<--il>
+
+=item B<--interline>
+
+Specify that lines should be drawn in-between entries.
+
+=item B<-f>
+
+=item B<--firstline>
+
+Specifies that the first line of output should be ignored.
+
+=item B<-n>
+
+=item B<--number>
+
+Number the output columns.
+
+=item B<-g>
+
+=item B<--noguess>
+
+Do not attempt to guess the output formatting from context.
+
+=item B<-r>
+
+=item B<--rewrite [expression]>
+
+FIXME: NOT TESTED FULLY.
+Specify any rewrites that occur for columns. This is either a zero '0' for no operation or a regular expression to rewrite the content of that column.
+Specify multiple times for each column.
+
+=item B<-t>
+
+=item B<--title [title]>
+
+Title the table.
+
+=item B<-v>
+
+=item B<--verbose>
+
+Be verbose on output. Use multiple times for more verbosity.
+This outputs any debugging information such as the guessed data type.
+
+=back
+
+=head1 DESCRIPTION
+
+A command line tool for the manipulation of thumbnails.
+This tool can regenerate, clean and remove thumbnails from local or global OpenDesktop thumbnail storage directories.
+
+=head1 EXAMPLES
+
+=over
+
+=item B<df -h | table>
+
+Format the available diskspace in a humanly reable way.
+
+=item B<mount | table -i 3>
+
+Display a list of all mount points on the system ignoring the third column (flags).
+
+=back
+
+=head1 BUGS
+
+Quite probably.
+
+=head1 AUTHOR
+
+Matt Carter <m@ttcarter.com>
+
+=cut
