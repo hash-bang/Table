@@ -190,7 +190,7 @@ $color_title =~ s/^([a-z ]+)\/([a-z ]+)$/\1 on_\2/i;
 $color_col =~ s/^([a-z ]+)\/([a-z ]+)$/\1 on_\2/i;
 
 our $table = Text::ASCIITable->new();
-$table->setCols('Id','Name','Price');
+$table->setCols('Data'); # Set dummy column names for now
 my $rowno = 1;
 my $set_header = 0;
 while (<>) {
@@ -211,17 +211,21 @@ while (<>) {
 			($row[$col]) = ($row[$col] =~ $rewrites[$col]) if $rewrites[$col];
 		}
 	}
-	unless ($set_header++) {
+	unless ($set_header++) { # First line of actual input
 		my $output = 1;
 		@columns = @row;
 		unless ($noguess) { # First data line when we are guessing the format
 			guess_format($_);
-			if ($format ne 'guess') {
+			if ($format and $format ne 'guess') {
 				print "Guessed format: '$format'\n" if $verbose;
 			} elsif (/\t/) {
 				$delimiter = '\t';
 				$output = 0;
 				print "Guessed format: unknown. Using tab delimiters\n" if $verbose;
+			} elsif($firstline) {
+				print "Guessed format: unknown. No column headers determined\n" if $verbose;
+				$title = '';
+				$output = 0;
 			} else {
 				$output = 0;
 				print "Guessed format: unknown. Using first line as columns and whitespace as delimiters\n" if $verbose;
@@ -240,7 +244,7 @@ while (<>) {
 		}
 	}
 	$rowno++;
-	next if $rowno == 2 && !$firstline;
+	next if $rowno == 2 and !$firstline;
 	unshift @row, $rowno if $number;
 	$table->addRow(\@row);
 }
@@ -270,6 +274,7 @@ if ($color) {
 } else { # Plain old black & white
 	$table->setOptions('headingText', $title) if $title;
 }
+$table->setOptions('hide_HeadLine', 1) unless $title;
 
 print $table->draw(@layout);
 
