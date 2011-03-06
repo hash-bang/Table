@@ -1,8 +1,149 @@
 #!/usr/bin/perl
+=head1 NAME
+
+table - Table formatter for pipe and/or command output
+
+=head1 SYNOPSIS
+
+	table [options] [file...]
+
+	command | table [options]
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-d>
+
+=item B<--delimiter [delimiter]>
+
+Specify an alternative column splitting delimiter for the incomming data.
+If not specifed whitespace (\s+) is used as the default.
+
+=item B<-c>
+
+=item B<--color>
+
+Use color when drawing the tables.
+Specify the colors using the --color-* flags.
+
+=item B<--cl>
+
+=item B<--color-line>
+
+Specify the color scheme of the inter-table lines.
+E.g. 'blue on black' or 'red'
+
+=item B<--ct>
+
+=item B<--color-title>
+
+Specify the color scheme of the table title.
+
+=item B<--cc>
+
+=item B<--color-col>
+
+Specify the color scheme of the table column headers.
+
+=item B<-cols>
+
+=item B<--columns [col]>
+
+FIXME: NOT TESTED FULLY.
+Title the incomming columns. Use multiple times to title all columns.
+If not specified and the guessing of the incomming data fails the first line will be used as the column titles.
+
+=item B<-i [col1,col2...]>
+
+=item B<--ignore [col1,col2...]>
+
+Specify which incomming columns to ignore. The number specifies which column numbers should be omitted from the output.
+Use multiple times for multiple columns.
+
+=item B<--il>
+
+=item B<--interline>
+
+Specify that lines should be drawn in-between entries.
+
+=item B<-f>
+
+=item B<--firstline>
+
+Specifies that the first line of output should be ignored.
+
+=item B<-n>
+
+=item B<--number>
+
+Number the output columns.
+
+=item B<-g>
+
+=item B<--noguess>
+
+Do not attempt to guess the output formatting from context.
+
+=item B<-r>
+
+=item B<--rewrite [expression]>
+
+FIXME: NOT TESTED FULLY.
+Specify any rewrites that occur for columns. This is either a zero '0' for no operation or a regular expression to rewrite the content of that column.
+Specify multiple times for each column.
+
+=item B<-t>
+
+=item B<--title [title]>
+
+Title the table.
+
+=item B<-v+>
+
+=item B<--verbose>
+
+Be verbose on output. Use multiple times for more verbosity.
+This outputs any debugging information such as the guessed data type.
+
+=back
+
+=head1 DESCRIPTION
+
+A command line tool to format an incomming data stream into a table.
+
+=head1 EXAMPLES
+
+=over
+
+=item B<df -h | table>
+
+Format the available diskspace in a humanly reable way.
+
+=item B<mount | table -i 3>
+
+Display a list of all mount points on the system ignoring the third column (flags).
+
+=back
+
+=head1 BUGS
+
+Quite probably.
+
+Please report to https://github.com/hash-bang/Table when found.
+
+=head1 AUTHOR
+
+Matt Carter <m@ttcarter.com>
+
+=cut
+
+# Header {{{
 use Getopt::Long qw(:config pass_through bundling);
 use Text::ASCIITable;
 
-use Data::Dumper;
+use Data::Dumper; # FIXME: Debugging
+# }}}
 
 # Input/Output options
 my $verbose, $number, $noguess;
@@ -169,139 +310,3 @@ sub guess_format {
 		$regexp = qr/^\[([ 0-9]+\.[0-9]+)\] (.*)/;
 	}
 }
-
-
-=head1 NAME
-
-table - Table formatter for pipe and/or command output
-
-=head1 SYNOPSIS
-	table [options] [file...]
-	command | table [options]
-
-=head1 OPTIONS
-
-=over 8
-
-=item B<-d>
-
-=item B<--delimiter [delimiter]>
-
-Specify an alternative delimiter.
-If not specifed whitespace (\s+) is used.
-
-=item B<--c>
-
-=item B<--color>
-
-Use color when drawing the tables.
-Specify the colors using the --color-* flags.
-
-=item B<--cl>
-
-=item B<--color-line>
-
-Specify the color scheme of the inter-table lines.
-E.g. 'blue on black' or 'red'
-
-=item B<--ct>
-
-=item B<--color-title>
-
-Specify the color scheme of the table title.
-
-=item B<--cc>
-
-=item B<--color-col>
-
-Specify the color scheme of the table column headers.
-
-=item B<-cols>
-=item B<-columns [col]>
-
-FIXME: NOT TESTED FULLY.
-Title the incomming columns. Use multiple times to title all columns.
-If not specified and the guessing of the incomming data fails the first line will be used as the column titles.
-
-=item B<-i>
-
-=item B<--ignore [column number]>
-
-Specify which incomming columns to ignore. The number specifies which column numbers should be omitted from the output.
-Use multiple times for multiple columns.
-
-=item B<--il>
-
-=item B<--interline>
-
-Specify that lines should be drawn in-between entries.
-
-=item B<-f>
-
-=item B<--firstline>
-
-Specifies that the first line of output should be ignored.
-
-=item B<-n>
-
-=item B<--number>
-
-Number the output columns.
-
-=item B<-g>
-
-=item B<--noguess>
-
-Do not attempt to guess the output formatting from context.
-
-=item B<-r>
-
-=item B<--rewrite [expression]>
-
-FIXME: NOT TESTED FULLY.
-Specify any rewrites that occur for columns. This is either a zero '0' for no operation or a regular expression to rewrite the content of that column.
-Specify multiple times for each column.
-
-=item B<-t>
-
-=item B<--title [title]>
-
-Title the table.
-
-=item B<-v>
-
-=item B<--verbose>
-
-Be verbose on output. Use multiple times for more verbosity.
-This outputs any debugging information such as the guessed data type.
-
-=back
-
-=head1 DESCRIPTION
-
-A command line tool for the manipulation of thumbnails.
-This tool can regenerate, clean and remove thumbnails from local or global OpenDesktop thumbnail storage directories.
-
-=head1 EXAMPLES
-
-=over
-
-=item B<df -h | table>
-
-Format the available diskspace in a humanly reable way.
-
-=item B<mount | table -i 3>
-
-Display a list of all mount points on the system ignoring the third column (flags).
-
-=back
-
-=head1 BUGS
-
-Quite probably.
-
-=head1 AUTHOR
-
-Matt Carter <m@ttcarter.com>
-
-=cut

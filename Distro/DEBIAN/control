@@ -1,0 +1,10 @@
+Package: table
+Source: table
+Version: $VERSION
+Architecture: any
+Maintainer: Matt Carter <m@ttcarter.com>
+Depends: perl (>= 5.10.0)
+Section: utils
+Priority: optional
+Homepage: https://github.com/hash-bang/Table
+Description: Command line filter to stream table output.
