@@ -1,0 +1,97 @@
+NAME
+    table - Table formatter for pipe and/or command output
+
+SYNOPSIS
+            table [options] [file...]
+
+            command | table [options]
+
+OPTIONS
+    -d
+    --delimiter [delimiter]
+            Specify an alternative column splitting delimiter for the
+            incomming data. If not specifed whitespace (\s+) is used as the
+            default.
+
+    -c
+    --color Use color when drawing the tables. Specify the colors using the
+            --color-* flags.
+
+    --cl
+    --color-line
+            Specify the color scheme of the inter-table lines. E.g. 'blue on
+            black' or 'red'
+
+    --ct
+    --color-title
+            Specify the color scheme of the table title.
+
+    --cc
+    --color-col
+            Specify the color scheme of the table column headers.
+
+    -cols
+    --columns [col]
+            FIXME: NOT TESTED FULLY. Title the incomming columns. Use
+            multiple times to title all columns. If not specified and the
+            guessing of the incomming data fails the first line will be used
+            as the column titles.
+
+    -i [col1,col2...]
+    --ignore [col1,col2...]
+            Specify which incomming columns to ignore. The number specifies
+            which column numbers should be omitted from the output. Use
+            multiple times for multiple columns.
+
+    --il
+    --interline
+            Specify that lines should be drawn in-between entries.
+
+    -f
+    --firstline
+            Specifies that the first line of output should be ignored.
+
+    -n
+    --number
+            Number the output columns.
+
+    -g
+    --noguess
+            Do not attempt to guess the output formatting from context.
+
+    -r
+    --rewrite [expression]
+            FIXME: NOT TESTED FULLY. Specify any rewrites that occur for
+            columns. This is either a zero '0' for no operation or a regular
+            expression to rewrite the content of that column. Specify
+            multiple times for each column.
+
+    -t
+    --title [title]
+            Title the table.
+
+    -v+
+    --verbose
+            Be verbose on output. Use multiple times for more verbosity.
+            This outputs any debugging information such as the guessed data
+            type.
+
+DESCRIPTION
+    A command line tool to format an incomming data stream into a table.
+
+EXAMPLES
+    df -h | table
+        Format the available diskspace in a humanly reable way.
+
+    mount | table -i 3
+        Display a list of all mount points on the system ignoring the third
+        column (flags).
+
+BUGS
+    Quite probably.
+
+    Please report to https://github.com/hash-bang/Table when found.
+
+AUTHOR
+    Matt Carter <m@ttcarter.com>
+
