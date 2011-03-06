@@ -1,25 +1,31 @@
-#/usr/bin/make
-DIST = Distro
+VERSION := $(shell git describe --match 'v[0-9].[0-9]' --tags --long | grep -Eo 'v[0-9]+\.[0-9]+-[0-9]+' | tr - . | cut -c 2-)
+DEBFACTORY := DebFactory
 
-.PHONY: all
+README: table
+	pod2text table >README
+	git add README
+	git commit -m 'Auto update from POD'
 
-all:
+commit: README
+	git commit -a
+
+push: commit
+	git push
+
+version:
+	echo "VERSION IS $(VERSION)"
 
 clean:
-	rm -f table_*.deb
-	rm -rf Distro/usr/share/table Distro/usr/bin Distro/usr/share/man
+	-rm -r $(DEBFACTORY)
 
-deb: clean man
-	mkdir -p Distro/usr/share/table Distro/usr/bin
-	cp -a table Distro/usr/share/table
-	ln -s /usr/share/table/table Distro/usr/bin/table
-	dpkg -b Distro table_0.9.deb
-
-install: deb
-	dpkg -i table_0.9.deb
-	rm -f table_0.9.deb
-
-man:
-	mkdir -p Distro/usr/share/man 
-	pod2man table Distro/usr/share/man/table.1
-	gzip -f Distro/usr/share/man/table.1
+deb:
+	mkdir $(DEBFACTORY)
+	mkdir -p $(DEBFACTORY)/usr/bin $(DEBFACTORY)/usr/share/man
+	cp -a table $(DEBFACTORY)/usr/bin
+	cp -ar Distro/DEBIAN $(DEBFACTORY)
+	perl -pi -e 's/\$$VERSION/$(VERSION)/' $(DEBFACTORY)/DEBIAN/control
+	pod2man table $(DEBFACTORY)/usr/share/man/table.1
+	gzip -f $(DEBFACTORY)/usr/share/man/table.1
+	dpkg -b $(DEBFACTORY) table_$(VERSION).deb
+	mv table_$(VERSION).deb Distro
+	make clean
